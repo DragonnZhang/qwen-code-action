@@ -4,6 +4,8 @@
 
 `qwen-code-action` is a GitHub Action that integrates [Qwen Code] into your development workflow via the [Qwen Code CLI]. It acts both as an autonomous agent for critical routine coding tasks, and an on-demand collaborator you can quickly delegate work to.
 
+> 🧪 **Test Update**: This line is added to test GitHub Actions workflow.
+
 Use it to perform GitHub pull request reviews, triage issues, perform code analysis and modification, and more using [Qwen Code] conversationally (e.g., `@qwen-code fix this issue`) directly inside your GitHub repositories.
 
 - [qwen-code-action](#qwen-code-action)
