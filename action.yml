@@ -247,15 +247,14 @@ runs:
            RESPONSE=$(jq -r '[.[] | select(.type == "assistant")] | last | .message.content[] | select(.type == "text") | .text' "${TEMP_STDOUT}")
         fi
         
-        echo "TEMP_STDERR content:"
-        cat "${TEMP_STDERR}"
-        echo "TEMP_STDERR is JSON: $(jq -e . "${TEMP_STDERR}" >/dev/null 2>&1 && echo 'yes' || echo 'no')"
-        
         if jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
            ERROR_JSON=$(jq -c '.error // empty' "${TEMP_STDERR}")
         fi
-        if ! { jq -e . "${TEMP_STDERR}" >/dev/null 2>&1 && jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; }; then
-          echo "::warning::Qwen Code CLI output was not valid JSON"
+        if ! jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; then
+          echo "::warning::Qwen Code CLI stdout was not valid JSON"
+        fi
+        if [[ -s "${TEMP_STDERR}" ]] && ! jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
+          echo "::warning::Qwen Code CLI stderr was not empty but not valid JSON"
         fi
 
 
