@@ -241,6 +241,8 @@ runs:
         RESPONSE=""
         ERROR_JSON=""
         if jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; then
+           echo "::debug::JSON output type: $(jq -r 'type' "${TEMP_STDOUT}")"
+           echo "::debug::JSON output structure: $(jq -c '.' "${TEMP_STDOUT}" | head -c 200)"
            RESPONSE=$(jq -r '.response // ""' "${TEMP_STDOUT}")
         fi
         if jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
