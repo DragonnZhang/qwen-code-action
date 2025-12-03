@@ -1,3 +1,5 @@
+---
+🧪 Test line for PR #2: 随机内容，仅用于触发 GitHub Action。
 # qwen-code-action
 
 ## Overview
