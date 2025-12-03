@@ -39,7 +39,7 @@ jobs:
 
       - name: 'Run Qwen Code CLI'
         id: 'run_qwen'
-        uses: 'QwenLM/qwen-code-action@v0' # ratchet:exclude
+        uses: 'DragonnZhang/qwen-code-action@v0' # ratchet:exclude
         env:
           TITLE: '${{ github.event.pull_request.title || github.event.issue.title }}'
           DESCRIPTION: '${{ github.event.pull_request.body || github.event.issue.body }}'
