@@ -158,11 +158,11 @@ runs:
         VERSION_INPUT="${QWEN_CLI_VERSION:-latest}"
 
         if [[ "${VERSION_INPUT}" == "latest" || "${VERSION_INPUT}" == "preview" || "${VERSION_INPUT}" == "nightly" || "${VERSION_INPUT}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\.-]+)?(\+[a-zA-Z0-9\.-]+)?$ ]]; then
-          echo "Installing Qwen Code CLI from npm: @qwen/code-cli@${VERSION_INPUT}"
+          echo "Installing Qwen Code CLI from npm: @qwen-code/qwen-code@${VERSION_INPUT}"
           if [[ "${USE_PNPM}" == "true" ]]; then
-            pnpm add --silent --global @qwen/code-cli@"${VERSION_INPUT}"
+            pnpm add --silent --global @qwen-code/qwen-code@"${VERSION_INPUT}"
           else
-            npm install --silent --no-audit --prefer-offline --global @qwen/code-cli@"${VERSION_INPUT}"
+            npm install --silent --no-audit --prefer-offline --global @qwen-code/qwen-code@"${VERSION_INPUT}"
           fi
         else
           echo "Installing Qwen Code CLI from GitHub: github:QwenLM/qwen-code-cli#${VERSION_INPUT}"
