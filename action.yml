@@ -246,6 +246,11 @@ runs:
            # Extract the text from assistant message content
            RESPONSE=$(jq -r '[.[] | select(.type == "assistant")] | last | .message.content[] | select(.type == "text") | .text' "${TEMP_STDOUT}")
         fi
+        
+        echo "TEMP_STDERR content:"
+        cat "${TEMP_STDERR}"
+        echo "TEMP_STDERR is JSON: $(jq -e . "${TEMP_STDERR}" >/dev/null 2>&1 && echo 'yes' || echo 'no')"
+        
         if jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
            ERROR_JSON=$(jq -c '.error // empty' "${TEMP_STDERR}")
         fi
