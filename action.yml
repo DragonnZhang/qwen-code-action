@@ -237,13 +237,14 @@ runs:
         fi
 
         # Parse JSON output to extract response and errors
-        # If output is not valid JSON, RESPONSE will be empty and we'll rely on stderr for errors
+        # The Qwen CLI outputs an array of event objects, extract assistant message content
         RESPONSE=""
         ERROR_JSON=""
         if jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; then
            echo "::debug::JSON output type: $(jq -r 'type' "${TEMP_STDOUT}")"
            echo "::debug::JSON output structure: $(jq -c '.' "${TEMP_STDOUT}" | head -c 200)"
-           RESPONSE=$(jq -r '.response // ""' "${TEMP_STDOUT}")
+           # Extract the text from assistant message content
+           RESPONSE=$(jq -r '[.[] | select(.type == "assistant")] | last | .message.content[] | select(.type == "text") | .text' "${TEMP_STDOUT}")
         fi
         if jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
            ERROR_JSON=$(jq -c '.error // empty' "${TEMP_STDERR}")
