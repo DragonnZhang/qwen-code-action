@@ -215,8 +215,15 @@ runs:
         fi
 
         # We capture stdout (JSON) to TEMP_STDOUT and stderr to TEMP_STDERR
+        echo "::debug::Running qwen CLI with prompt: ${PROMPT}"
+        echo "::debug::Command: qwen --yolo --prompt <PROMPT> --output-format json"
+        
         if ! qwen --yolo --prompt "${PROMPT}" --output-format json 2> "${TEMP_STDERR}" 1> "${TEMP_STDOUT}"; then
+          QWEN_EXIT_CODE=$?
+          echo "::warning::Qwen CLI exited with code: ${QWEN_EXIT_CODE}"
           FAILED=true
+        else
+          echo "::debug::✓ Qwen CLI completed successfully"
         fi
 
         if [[ "${DEBUG}" = true ]]; then
@@ -238,54 +245,90 @@ runs:
 
         # Parse JSON output to extract response and errors
         # The Qwen CLI outputs an array of event objects, extract assistant message content
+        echo "::debug::=== Starting JSON parsing ==="
+        echo "::debug::TEMP_STDOUT file size: $(wc -c < "${TEMP_STDOUT}") bytes"
+        echo "::debug::TEMP_STDOUT first 500 chars: $(head -c 500 "${TEMP_STDOUT}")"
+        
         RESPONSE=""
         ERROR_JSON=""
+        
+        echo "::debug::Validating TEMP_STDOUT as JSON..."
         if jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; then
-           echo "::debug::JSON output type: $(jq -r 'type' "${TEMP_STDOUT}")"
-           echo "::debug::JSON output structure: $(jq -c '.' "${TEMP_STDOUT}" | head -c 200)"
            # Extract the text from assistant message content
-           RESPONSE=$(jq -r '[.[] | select(.type == "assistant")] | last | .message.content[] | select(.type == "text") | .text' "${TEMP_STDOUT}")
+           echo "::debug::Attempting to extract RESPONSE with jq..."
+           if RESPONSE=$(jq -r '[.[] | select(.type == "assistant")] | last | .message.content[] | select(.type == "text") | .text' "${TEMP_STDOUT}" 2>&1); then
+             echo "::debug::✓ RESPONSE extracted successfully, length: ${#RESPONSE}"
+             echo "::debug::RESPONSE preview: $(echo "${RESPONSE}" | head -c 200)"
+           else
+             echo "::warning::Failed to extract RESPONSE with jq: ${RESPONSE}"
+             RESPONSE=""
+           fi
+        else
+           echo "::warning::✗ TEMP_STDOUT is NOT valid JSON"
+           echo "::debug::TEMP_STDOUT full content:"
+           cat "${TEMP_STDOUT}"
         fi
         
+        echo "::debug::Validating TEMP_STDERR as JSON..."
         if jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
+           echo "::debug::✓ TEMP_STDERR is valid JSON"
            ERROR_JSON=$(jq -c '.error // empty' "${TEMP_STDERR}")
+           echo "::debug::ERROR_JSON extracted: ${ERROR_JSON}"
+        else
+           echo "::debug::✗ TEMP_STDERR is NOT valid JSON"
         fi
+        
         if ! jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; then
           echo "::warning::Qwen Code CLI stdout was not valid JSON"
         fi
         if [[ -s "${TEMP_STDERR}" ]] && ! jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
           echo "::warning::Qwen Code CLI stderr was not empty but not valid JSON"
+          echo "::debug::TEMP_STDERR size: $(wc -c < "${TEMP_STDERR}") bytes"
+          echo "::debug::TEMP_STDERR content: $(cat "${TEMP_STDERR}")"
         fi
 
 
         # Set the captured response as a step output, supporting multiline
+        echo "::debug::Setting qwen_response output..."
         echo "qwen_response<<EOF" >> "${GITHUB_OUTPUT}"
         if [[ -n "${RESPONSE}" ]]; then
+          echo "::debug::Using extracted RESPONSE (length: ${#RESPONSE})"
           echo "${RESPONSE}" >> "${GITHUB_OUTPUT}"
         else
+          echo "::debug::RESPONSE is empty, using raw TEMP_STDOUT"
           cat "${TEMP_STDOUT}" >> "${GITHUB_OUTPUT}"
         fi
         echo "EOF" >> "${GITHUB_OUTPUT}"
 
         # Set the captured errors as a step output, supporting multiline
+        echo "::debug::Setting qwen_errors output..."
         echo "qwen_errors<<EOF" >> "${GITHUB_OUTPUT}"
         if [[ -n "${ERROR_JSON}" ]]; then
+          echo "::debug::Using extracted ERROR_JSON"
           echo "${ERROR_JSON}" >> "${GITHUB_OUTPUT}"
         else
+          echo "::debug::ERROR_JSON is empty, using raw TEMP_STDERR"
           cat "${TEMP_STDERR}" >> "${GITHUB_OUTPUT}"
         fi
         echo "EOF" >> "${GITHUB_OUTPUT}"
 
+        echo "::debug::FAILED status: ${FAILED}"
         if [[ "${FAILED}" = true ]]; then
+          echo "::error::Qwen CLI execution failed (FAILED=true)"
           # If we have a structured error from JSON, use it for the error message
           if [[ -n "${ERROR_JSON}" ]]; then
              ERROR_MSG=$(jq -r '.message // .' <<< "${ERROR_JSON}")
              echo "::error title=Qwen Code CLI execution failed::${ERROR_MSG}"
+          else
+             echo "::debug::No structured error available in ERROR_JSON"
           fi
           echo "::: Start Qwen Code CLI STDERR :::"
           cat "${TEMP_STDERR}"
           echo "::: End Qwen Code CLI STDERR :::"
+          echo "::debug::Exiting with code 1"
           exit 1
+        else
+          echo "::debug::✓ Script completed successfully, FAILED=false"
         fi
       env:
         DEBUG: '${{ fromJSON(inputs.qwen_debug || false) }}'
