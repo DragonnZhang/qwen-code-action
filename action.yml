@@ -158,11 +158,11 @@ runs:
         VERSION_INPUT="${QWEN_CLI_VERSION:-latest}"
 
         if [[ "${VERSION_INPUT}" == "latest" || "${VERSION_INPUT}" == "preview" || "${VERSION_INPUT}" == "nightly" || "${VERSION_INPUT}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\.-]+)?(\+[a-zA-Z0-9\.-]+)?$ ]]; then
-          echo "Installing Qwen Code CLI from npm: @qwen/code-cli@${VERSION_INPUT}"
+          echo "Installing Qwen Code CLI from npm: @qwen-code/qwen-code@${VERSION_INPUT}"
           if [[ "${USE_PNPM}" == "true" ]]; then
-            pnpm add --silent --global @qwen/code-cli@"${VERSION_INPUT}"
+            pnpm add --silent --global @qwen-code/qwen-code@"${VERSION_INPUT}"
           else
-            npm install --silent --no-audit --prefer-offline --global @qwen/code-cli@"${VERSION_INPUT}"
+            npm install --silent --no-audit --prefer-offline --global @qwen-code/qwen-code@"${VERSION_INPUT}"
           fi
         else
           echo "Installing Qwen Code CLI from GitHub: github:QwenLM/qwen-code-cli#${VERSION_INPUT}"
@@ -237,17 +237,24 @@ runs:
         fi
 
         # Parse JSON output to extract response and errors
-        # If output is not valid JSON, RESPONSE will be empty and we'll rely on stderr for errors
+        # The Qwen CLI outputs an array of event objects, extract assistant message content
         RESPONSE=""
         ERROR_JSON=""
         if jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; then
-           RESPONSE=$(jq -r '.response // ""' "${TEMP_STDOUT}")
+           echo "::debug::JSON output type: $(jq -r 'type' "${TEMP_STDOUT}")"
+           echo "::debug::JSON output structure: $(jq -c '.' "${TEMP_STDOUT}" | head -c 200)"
+           # Extract the text from assistant message content
+           RESPONSE=$(jq -r '[.[] | select(.type == "assistant")] | last | .message.content[] | select(.type == "text") | .text' "${TEMP_STDOUT}")
         fi
+        
         if jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
            ERROR_JSON=$(jq -c '.error // empty' "${TEMP_STDERR}")
         fi
-        if ! { jq -e . "${TEMP_STDERR}" >/dev/null 2>&1 && jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; }; then
-          echo "::warning::Qwen Code CLI output was not valid JSON"
+        if ! jq -e . "${TEMP_STDOUT}" >/dev/null 2>&1; then
+          echo "::warning::Qwen Code CLI stdout was not valid JSON"
+        fi
+        if [[ -s "${TEMP_STDERR}" ]] && ! jq -e . "${TEMP_STDERR}" >/dev/null 2>&1; then
+          echo "::warning::Qwen Code CLI stderr was not empty but not valid JSON"
         fi
 
 
